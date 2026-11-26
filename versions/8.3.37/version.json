@@ -1,0 +1,15 @@
+{
+  "project": "Harilai/Xamp-Portable",
+  "xampp_version": "8.3.37",
+  "php_version": "8.3.37",
+  "platform": "Windows x64",
+  "distribution": "ZIP portable",
+  "source": "Instalador oficial dividido en cinco fragmentos y reconstruido",
+  "build_method": "split-installer-reconstruction",
+  "release_url": "https://github.com/Harilai/Xamp-Portable/releases/tag/v8.3.37",
+  "download_url": "https://github.com/Harilai/Xamp-Portable/releases/download/v8.3.37/XAMPP-8.3.37-portable-reconstruido.zip",
+  "package_filename": "XAMPP-8.3.37-portable-reconstruido.zip",
+  "checksum_file": "SHA256SUMS.txt",
+  "automated_validation": "Reconstrucción del instalador y comprobación CRC del ZIP.",
+  "functional_runtime_status": "Arranque y funcionamiento de servicios en Windows pendientes de prueba funcional."
+}
