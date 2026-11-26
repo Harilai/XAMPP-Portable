@@ -41,11 +41,12 @@ jobs:
           unzip -q "$source_zip" -d payload
           test -d payload/apache
           mkdir -p payload/apache/logs
+          touch payload/apache/logs/.keep
 
           rm -f "$zip_name"
           (cd payload && zip -qr "../$zip_name" .)
           unzip -tq "$zip_name"
-          unzip -Z1 "$zip_name" | grep -qx 'apache/logs/'
+          unzip -Z1 "$zip_name" | grep -qx 'apache/logs/.keep'
 
           final_hash="$(sha256sum "$zip_name" | cut -d' ' -f1)"
           printf '%s  %s\n' "$final_hash" "$zip_name" > SHA256SUMS.txt
