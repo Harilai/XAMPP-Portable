@@ -22,27 +22,32 @@ jobs:
           $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne '814568e2134633b98f6a4c02423472cf7a0c6c92f1f07bd0ae3486d205f76abb') { throw "Installer SHA-256 mismatch: $actual" }
 
-      - name: Install payload into temporary folder and package ZIP
+      - name: Install payload and package portable ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $prefix = Join-Path $env:RUNNER_TEMP 'xampp-prefix'
-          $xampp = Join-Path $prefix 'xampp'
           if (Test-Path $prefix) { Remove-Item $prefix -Recurse -Force }
-          $args = @('--mode','unattended','--unattendedmodeui','none','--prefix',$prefix,'--launchapps','0')
-          $p = Start-Process -FilePath '.\xampp-windows-x64-8.4.28-0-VS17-installer.exe' -ArgumentList $args -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "XAMPP installer returned exit code $($p.ExitCode)" }
-          if (-not (Test-Path (Join-Path $xampp 'xampp-control.exe'))) {
-            Get-ChildItem $prefix -Force -Recurse | Select-Object -First 100 FullName | Format-Table -AutoSize | Out-String | Write-Host
-            throw "Expected XAMPP payload at $xampp (the official package installs into a xampp subdirectory of the selected prefix)."
-          }
-          foreach ($required in @('xampp-control.exe','php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
+          New-Item -ItemType Directory -Force -Path $prefix | Out-Null
+          $helpText = & ".\xampp-windows-x64-8.4.28-0-VS17-installer.exe" --help 2>&1 | Out-String
+          Write-Host "Installer CLI help:"
+          Write-Host $helpText
+          & ".\xampp-windows-x64-8.4.28-0-VS17-installer.exe" --mode unattended --unattendedmodeui none --prefix "$prefix"
+          $installerExit = $LASTEXITCODE
+          Write-Host "Installer exit code: $installerExit"
+          Get-ChildItem $prefix -Force -Recurse -ErrorAction SilentlyContinue | Select-Object -First 80 FullName | Format-Table -AutoSize | Out-String | Write-Host
+          if ($installerExit -ne 0) { throw "XAMPP installer returned exit code $installerExit" }
+          $control = Get-ChildItem $prefix -Filter 'xampp-control.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $control) { throw "xampp-control.exe not found under $prefix after unattended install." }
+          $xampp = $control.Directory.FullName
+          Write-Host "Detected XAMPP root: $xampp"
+          foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
             if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
           }
           New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'apache\logs') | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'mysql\data') | Out-Null
           if (-not (Test-Path (Join-Path $xampp 'apache\logs\keep.txt'))) { Set-Content (Join-Path $xampp 'apache\logs\keep.txt') 'Apache logs directory placeholder.' }
-          if (-not (Test-Path (Join-Path $xampp 'mysql\data\keep.txt'))) { Set-Content (Join-Path $xampp 'mysql\data\keep.txt') 'MySQL data directory placeholder.' }
+          if (-not (Test-Path (Join-Path $xampp 'mysql\data\keep.txt'))) { Set-Content (Join-Path $xampp 'mysql\data\keep.txt') 'MariaDB data directory placeholder.' }
           Push-Location $xampp
           try {
             & .\php\php.exe -v
@@ -52,8 +57,11 @@ jobs:
             & .\mysql\bin\mysqld.exe --version
             if ($LASTEXITCODE -ne 0) { throw 'MariaDB binary smoke test failed' }
           } finally { Pop-Location }
+          $stage = Join-Path $env:RUNNER_TEMP 'package'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item $xampp (Join-Path $stage 'xampp') -Recurse -Force
           $zip = "XAMPP-8.4.28-portable-Windows-x64.zip"
-          Compress-Archive -Path $xampp -DestinationPath $zip -CompressionLevel Optimal
+          Compress-Archive -Path (Join-Path $stage 'xampp') -DestinationPath $zip -CompressionLevel Optimal
           $check = Join-Path $env:RUNNER_TEMP 'verify-zip'
           if (Test-Path $check) { Remove-Item $check -Recurse -Force }
           Expand-Archive -Path $zip -DestinationPath $check -Force
@@ -79,10 +87,9 @@ jobs:
           target_commitish: xampp-8.4.28
           body: |
             XAMPP 8.4.28 portable para Windows x64.
-
-            El ZIP contiene la carpeta xampp completa. Se genera desde el instalador oficial en un runner Windows, sin instalar servicios. Se verifica el SHA-256 del origen, los binarios principales, PHP, la configuración de Apache, MariaDB y la extracción del ZIP.
-
-            Para usarlo, extrae el ZIP en una carpeta con permisos de escritura y ejecuta xampp\setup_xampp.bat si necesitas ajustar rutas. No instales Apache ni MariaDB como servicios.
+            ZIP reconstruido desde el payload oficial en runner Windows. Incluye la carpeta xampp.
+            Se valida hash de origen, ejecutables PHP/Apache/MariaDB, configuración Apache y extracción del ZIP.
+            Extrae en una carpeta escribible. Ejecuta setup_xampp.bat si necesitas adaptar rutas. No instales servicios Windows.
           files: |
             XAMPP-8.4.28-portable-Windows-x64.zip
             SHA256SUMS.txt
