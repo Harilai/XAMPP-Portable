@@ -25,3 +25,11 @@ Extrae el ZIP en una carpeta donde tengas permisos de escritura. Si el paquete i
 Consulta el [README principal](../../README.md) para las instrucciones generales.
 
 > El ZIP y su checksum son assets de GitHub Releases. No se duplican dentro del historial Git del repositorio.
+
+
+## Receta de construcción archivada
+
+- [Workflow original de GitHub Actions](./build/publish-xampp-release.yml)
+
+Este YAML se conserva como referencia histórica dentro de `versions/`. Al estar fuera de `.github/workflows/`, no se ejecuta automáticamente. Para volver a construir o publicar una versión habrá que adaptar o copiar su receta a un workflow activo.
+ 
