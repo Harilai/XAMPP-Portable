@@ -32,11 +32,13 @@ jobs:
           $control = Get-ChildItem $check -Filter 'xampp-control.exe' -File -Recurse | Select-Object -First 1
           if (-not $control) { throw 'xampp-control.exe missing from portable archive' }
           $xampp = $control.Directory.FullName
-          foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe')) {
+          foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
             if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
           }
           Push-Location $xampp
           try {
+            & .\setup_xampp.bat
+            if ($LASTEXITCODE -ne 0) { throw 'setup_xampp.bat failed to configure relative paths' }
             & .\php\php.exe -v
             if ($LASTEXITCODE -ne 0) { throw 'PHP smoke test failed' }
             & .\apache\bin\httpd.exe -t
