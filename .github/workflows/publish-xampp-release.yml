@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   portable:
-    name: Install to isolated user folder and package portable ZIP
+    name: Build and validate portable ZIP
     runs-on: windows-latest
     steps:
       - name: Download and verify official installer
@@ -22,32 +22,48 @@ jobs:
           $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne 'c23b29639715d3a9800dc86b0274f6cacc4b5114556f474a84f42d4cbba7e640') { throw "Installer SHA-256 mismatch: $actual" }
 
-      - name: Extract XAMPP into an isolated directory without registering services
+      - name: Install payload into temporary folder and package ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $root = Join-Path $env:RUNNER_TEMP 'xampp-portable'
-          if (Test-Path $root) { Remove-Item $root -Recurse -Force }
-          $p = Start-Process -FilePath '.\xampp-windows-x64-8.5.13-0-VS17-installer.exe' -ArgumentList @('--mode','unattended','--unattendedmodeui','none','--prefix',$root) -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "XAMPP unattended extraction returned exit code $($p.ExitCode)" }
-          foreach ($required in @('xampp-control.exe','php\php.exe','apache\bin\httpd.exe')) {
-            if (-not (Test-Path (Join-Path $root $required))) { throw "Missing required payload: $required" }
+          $prefix = Join-Path $env:RUNNER_TEMP 'xampp-prefix'
+          $xampp = Join-Path $prefix 'xampp'
+          if (Test-Path $prefix) { Remove-Item $prefix -Recurse -Force }
+          $args = @('--mode','unattended','--unattendedmodeui','none','--prefix',$prefix,'--launchapps','0')
+          $p = Start-Process -FilePath '.\xampp-windows-x64-8.5.13-0-VS17-installer.exe' -ArgumentList $args -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "XAMPP installer returned exit code $($p.ExitCode)" }
+          if (-not (Test-Path (Join-Path $xampp 'xampp-control.exe'))) {
+            Get-ChildItem $prefix -Force -Recurse | Select-Object -First 100 FullName | Format-Table -AutoSize | Out-String | Write-Host
+            throw "Expected XAMPP payload at $xampp (the official package installs into a xampp subdirectory of the selected prefix)."
           }
-          New-Item -ItemType Directory -Force -Path (Join-Path $root 'apache\logs') | Out-Null
-          New-Item -ItemType Directory -Force -Path (Join-Path $root 'mysql\data') | Out-Null
-          if (-not (Test-Path (Join-Path $root 'apache\logs\keep.txt'))) { Set-Content (Join-Path $root 'apache\logs\keep.txt') 'Apache logs directory placeholder.' }
-          if (-not (Test-Path (Join-Path $root 'mysql\data\keep.txt'))) { Set-Content (Join-Path $root 'mysql\data\keep.txt') 'MySQL data directory placeholder.' }
+          foreach ($required in @('xampp-control.exe','php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
+            if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
+          }
+          New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'apache\logs') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'mysql\data') | Out-Null
+          if (-not (Test-Path (Join-Path $xampp 'apache\logs\keep.txt'))) { Set-Content (Join-Path $xampp 'apache\logs\keep.txt') 'Apache logs directory placeholder.' }
+          if (-not (Test-Path (Join-Path $xampp 'mysql\data\keep.txt'))) { Set-Content (Join-Path $xampp 'mysql\data\keep.txt') 'MySQL data directory placeholder.' }
+          Push-Location $xampp
+          try {
+            & .\php\php.exe -v
+            if ($LASTEXITCODE -ne 0) { throw 'PHP smoke test failed' }
+            & .\apache\bin\httpd.exe -t
+            if ($LASTEXITCODE -ne 0) { throw 'Apache configuration test failed' }
+            & .\mysql\bin\mysqld.exe --version
+            if ($LASTEXITCODE -ne 0) { throw 'MariaDB binary smoke test failed' }
+          } finally { Pop-Location }
           $zip = "XAMPP-8.5.13-portable-Windows-x64.zip"
-          Compress-Archive -Path (Join-Path $root '*') -DestinationPath $zip -CompressionLevel Optimal
+          Compress-Archive -Path $xampp -DestinationPath $zip -CompressionLevel Optimal
           $check = Join-Path $env:RUNNER_TEMP 'verify-zip'
+          if (Test-Path $check) { Remove-Item $check -Recurse -Force }
           Expand-Archive -Path $zip -DestinationPath $check -Force
-          foreach ($required in @('xampp-control.exe','php\php.exe','apache\bin\httpd.exe','apache\logs')) {
+          foreach ($required in @('xampp\xampp-control.exe','xampp\php\php.exe','xampp\apache\bin\httpd.exe','xampp\mysql\bin\mysqld.exe','xampp\apache\logs')) {
             if (-not (Test-Path (Join-Path $check $required))) { throw "ZIP validation failed: $required" }
           }
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           "$hash  $zip" | Set-Content SHA256SUMS.txt -Encoding ascii
 
-      - name: Replace installer assets with the portable ZIP
+      - name: Replace installer assets with portable ZIP
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
@@ -55,7 +71,7 @@ jobs:
           gh release delete-asset v8.5.13 'xampp-windows-x64-8.5.13-0-VS17-installer.exe' --yes
           gh release delete-asset v8.5.13 'SHA256SUMS.txt' --yes
 
-      - name: Publish portable package
+      - name: Publish portable ZIP
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v8.5.13
@@ -64,11 +80,9 @@ jobs:
           body: |
             XAMPP 8.5.13 portable para Windows x64.
 
-            El paquete se genera en Windows a partir del instalador oficial mediante modo unattended en un directorio aislado. No se instala como servicio de Windows.
+            El ZIP contiene la carpeta xampp completa. Se genera desde el instalador oficial en un runner Windows, sin instalar servicios. Se verifica el SHA-256 del origen, los binarios principales, PHP, la configuración de Apache, MariaDB y la extracción del ZIP.
 
-            Se verifica SHA-256 del origen, presencia de los ejecutables principales y extracción de comprobación del ZIP.
-
-            La ejecución funcional de Apache, MariaDB y PHP debe probarse en Windows con una cuenta estándar; la creación del ZIP no certifica por sí sola el arranque en todos los equipos.
+            Para usarlo, extrae el ZIP en una carpeta con permisos de escritura y ejecuta xampp\setup_xampp.bat si necesitas ajustar rutas. No instales Apache ni MariaDB como servicios.
           files: |
             XAMPP-8.5.13-portable-Windows-x64.zip
             SHA256SUMS.txt
