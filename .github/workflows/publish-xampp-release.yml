@@ -1,0 +1,65 @@
+name: Publish XAMPP 8.2.12 portable release
+
+on:
+  push:
+    branches:
+      - xampp-8.2.12
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Download, verify and publish portable ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out version branch
+        uses: actions/checkout@v4
+        with:
+          ref: xampp-8.2.12
+
+      - name: Download official portable package from SourceForge
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 3 \
+            --output xampp-portable-windows-x64-8.2.12-0-VS16.zip \
+            'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.2.12/xampp-portable-windows-x64-8.2.12-0-VS16.zip'
+
+      - name: Verify SHA-256 and ZIP integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='ce3bdf852bd62c7363cb51d66e709b6a9bf5f3ea59bc1712ffda11d9238e5651'
+          actual="$(sha256sum xampp-portable-windows-x64-8.2.12-0-VS16.zip | cut -d' ' -f1)"
+          echo "Expected SHA-256: $expected"
+          echo "Actual SHA-256:   $actual"
+          test "$actual" = "$expected"
+          unzip -tq xampp-portable-windows-x64-8.2.12-0-VS16.zip
+          printf '%s  %s\n' "$expected" "xampp-portable-windows-x64-8.2.12-0-VS16.zip" > SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.2.12
+          name: XAMPP 8.2.12 portable (Windows x64)
+          target_commitish: xampp-8.2.12
+          body: |
+            Paquete portable oficial de XAMPP 8.2.12 para Windows x64 (VS16).
+
+            Incluye PHP 8.2.12, Apache 2.4.58, MariaDB 10.4.32,
+            phpMyAdmin 5.2.1 y XAMPP Control Panel 3.3.0.
+
+            SHA-256 verificado:
+            ce3bdf852bd62c7363cb51d66e709b6a9bf5f3ea59bc1712ffda11d9238e5651
+
+            Requisito: Microsoft Visual C++ 2019 Redistributable.
+            El paquete portable no incluye FileZilla ni Mercury y tiene la
+            instalación de servicios deshabilitada. No se ha probado aquí
+            el arranque de los ejecutables en Windows; comprueba su
+            funcionamiento en tu equipo antes de usarlo.
+          files: |
+            xampp-portable-windows-x64-8.2.12-0-VS16.zip
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
