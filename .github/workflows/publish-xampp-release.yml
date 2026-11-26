@@ -46,7 +46,49 @@ jobs:
           rm -f "$zip_name"
           (cd payload && zip -qr "../$zip_name" .)
           unzip -tq "$zip_name"
-          unzip -Z1 "$zip_name" | grep -qx 'apache/logs/keep.txt'
+          unzip -Z1 "$zip_name" | grep -Eq '(^|/)apache/logs/keep\\.txt
+
+          final_hash="$(sha256sum "$zip_name" | cut -d' ' -f1)"
+          printf '%s  %s\n' "$final_hash" "$zip_name" > SHA256SUMS.txt
+          echo "Published ZIP SHA-256: $final_hash"
+
+      - name: Remove old split assets from the previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view v8.3.37 >/dev/null 2>&1; then
+            for asset in \
+              XAMPP-8.3.37-parte-0.bin \
+              XAMPP-8.3.37-parte-1.bin \
+              XAMPP-8.3.37-parte-2.bin \
+              XAMPP-8.3.37-parte-3.bin \
+              XAMPP-8.3.37-parte-4.bin \
+              unir-XAMPP.bat; do
+              gh release delete-asset v8.3.37 "$asset" --yes || true
+            done
+          fi
+
+      - name: Publish the repaired release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.3.37
+          name: XAMPP 8.3.37 portable (Windows x64)
+          target_commitish: xampp-8.3.37
+          body: |
+            XAMPP 8.3.37 portable reconstruido para Windows x64.
+
+            Corrección: el ZIP incluye la carpeta apache/logs necesaria para que Apache pueda arrancar correctamente.
+
+            Descarga el ZIP completo y extráelo en Windows. SHA256SUMS.txt contiene la suma SHA-256 del ZIP publicado.
+
+            Aviso: se valida la integridad CRC del ZIP y la presencia de apache/logs. El arranque de Apache debe comprobarse en Windows; no se certifica el funcionamiento de todos los componentes ni su uso en producción.
+          files: |
+            XAMPP-8.3.37-portable-reconstruido.zip
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
+
 
           final_hash="$(sha256sum "$zip_name" | cut -d' ' -f1)"
           printf '%s  %s\n' "$final_hash" "$zip_name" > SHA256SUMS.txt
