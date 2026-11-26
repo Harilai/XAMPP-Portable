@@ -33,19 +33,18 @@ jobs:
 
           expected="59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef"
           actual="$(sha256sum "$source_zip" | cut -d' ' -f1)"
-          echo "Expected source SHA-256: $expected"
-          echo "Actual source SHA-256:   $actual"
           test "$actual" = "$expected"
 
-          mkdir payload
-          unzip -q "$source_zip" -d payload
-          test -d payload/apache
-          mkdir -p payload/apache/logs
-          printf 'This file keeps the Apache logs directory in the ZIP.\n' > payload/apache/logs/keep.txt
+          cp "$source_zip" "$zip_name"
+          python3 - <<'PY'
+          import zipfile
+          archive = "XAMPP-8.3.37-portable-reconstruido.zip"
+          with zipfile.ZipFile(archive, "a", compression=zipfile.ZIP_DEFLATED) as zf:
+              zf.writestr("apache/logs/keep.txt", "Apache logs directory placeholder.\n")
+          PY
 
-          rm -f "$zip_name"
-          (cd payload && zip -qr "../$zip_name" .)
           unzip -tq "$zip_name"
+          unzip -Z1 "$zip_name" | grep -Fxq 'apache/logs/keep.txt'
           final_hash="$(sha256sum "$zip_name" | cut -d' ' -f1)"
           printf '%s  %s\n' "$final_hash" "$zip_name" > SHA256SUMS.txt
           echo "Published ZIP SHA-256: $final_hash"
@@ -76,7 +75,7 @@ jobs:
           body: |
             XAMPP 8.3.37 portable reconstruido para Windows x64.
 
-            Corrección: el ZIP incluye la carpeta apache/logs necesaria para que Apache pueda arrancar correctamente.
+            Corrección: el ZIP incluye apache/logs, que Apache necesita para iniciar.
 
             Descarga el ZIP completo y extráelo en Windows. SHA256SUMS.txt contiene la suma SHA-256 del ZIP publicado.
 
