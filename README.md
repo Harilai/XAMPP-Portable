@@ -95,3 +95,10 @@ Cada versión tiene su propia rama `xampp-X.Y.Z` y su workflow en `.github/workf
 - [Apache Friends — Descargas oficiales](https://www.apachefriends.org/download.html)
 - [SourceForge — Archivos oficiales de XAMPP para Windows](https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/)
 - [Releases de este repositorio](https://github.com/Harilai/xamp-versions/releases)
+
+
+## Estructura de versiones en el repositorio
+
+Las fichas técnicas de cada versión están organizadas en [`versions/`](./versions/). Cada carpeta contiene un `README.md` y un `version.json` con el origen, el paquete publicado, los enlaces de descarga y el nivel de validación.
+
+Consulta el [índice de versiones](./versions/README.md) para acceder a las nueve fichas individuales. Los ZIP se mantienen en GitHub Releases para no duplicar archivos grandes en el historial Git.
