@@ -1,0 +1,87 @@
+name: Publish XAMPP 8.3.37 release
+
+on:
+  push:
+    branches:
+      - xampp-8.3.37
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Rebuild, repair, verify and publish the portable ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out version payload
+        uses: actions/checkout@v4
+        with:
+          ref: xampp-8.3.37
+
+      - name: Reassemble, repair and verify the complete ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip_name="XAMPP-8.3.37-portable-reconstruido.zip"
+          source_zip="XAMPP-8.3.37-source.zip"
+          cat \
+            XAMPP-8.3.37-parte-0.bin \
+            XAMPP-8.3.37-parte-1.bin \
+            XAMPP-8.3.37-parte-2.bin \
+            XAMPP-8.3.37-parte-3.bin \
+            XAMPP-8.3.37-parte-4.bin > "$source_zip"
+
+          expected="59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef"
+          actual="$(sha256sum "$source_zip" | cut -d' ' -f1)"
+          test "$actual" = "$expected"
+
+          cp "$source_zip" "$zip_name"
+          python3 - <<'PY'
+          import zipfile
+          archive = "XAMPP-8.3.37-portable-reconstruido.zip"
+          with zipfile.ZipFile(archive, "a", compression=zipfile.ZIP_DEFLATED) as zf:
+              zf.writestr("apache/logs/keep.txt", "Apache logs directory placeholder.\n")
+          PY
+
+          unzip -tq "$zip_name"
+          unzip -Z1 "$zip_name" | grep -Fxq 'apache/logs/keep.txt'
+          final_hash="$(sha256sum "$zip_name" | cut -d' ' -f1)"
+          printf '%s  %s\n' "$final_hash" "$zip_name" > SHA256SUMS.txt
+          echo "Published ZIP SHA-256: $final_hash"
+
+      - name: Remove old split assets from the previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view v8.3.37 >/dev/null 2>&1; then
+            for asset in \
+              XAMPP-8.3.37-parte-0.bin \
+              XAMPP-8.3.37-parte-1.bin \
+              XAMPP-8.3.37-parte-2.bin \
+              XAMPP-8.3.37-parte-3.bin \
+              XAMPP-8.3.37-parte-4.bin \
+              unir-XAMPP.bat; do
+              gh release delete-asset v8.3.37 "$asset" --yes || true
+            done
+          fi
+
+      - name: Publish the repaired release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.3.37
+          name: XAMPP 8.3.37 portable (Windows x64)
+          target_commitish: xampp-8.3.37
+          body: |
+            XAMPP 8.3.37 portable reconstruido para Windows x64.
+
+            Corrección: el ZIP incluye apache/logs, que Apache necesita para iniciar.
+
+            Descarga el ZIP completo y extráelo en Windows. SHA256SUMS.txt contiene la suma SHA-256 del ZIP publicado.
+
+            Aviso: se valida la integridad CRC del ZIP y la presencia de apache/logs. El arranque de Apache debe comprobarse en Windows; no se certifica el funcionamiento de todos los componentes ni su uso en producción.
+          files: |
+            XAMPP-8.3.37-portable-reconstruido.zip
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
