@@ -1,0 +1,84 @@
+name: Build portable XAMPP 8.4.27 ZIP
+
+on:
+  push:
+    branches:
+      - xampp-8.4.27
+
+permissions:
+  contents: write
+
+jobs:
+  portable:
+    name: Build and validate portable ZIP
+    runs-on: windows-latest
+    steps:
+      - name: Download and verify official installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = 'xampp-windows-x64-8.4.27-0-VS17-installer.exe'
+          curl.exe -fL --retry 3 --retry-delay 2 'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.4.27/xampp-windows-x64-8.4.27-0-VS17-installer.exe' -o $installer
+          $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne '080311a5cb600f1bf8b14df0543af17eed7ff6b255510ad8497f21d126cd64a9') { throw "Installer SHA-256 mismatch: $actual" }
+
+      - name: Install, validate and package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = Start-Process -FilePath '.\xampp-windows-x64-8.4.27-0-VS17-installer.exe' -ArgumentList '--mode unattended --unattendedmodeui none' -Wait -PassThru
+          Write-Host "Installer process exit code: $($p.ExitCode)"
+          $xampp = $null
+          foreach ($candidate in @('C:\xampp', 'D:\xampp', (Join-Path $env:RUNNER_TEMP 'xampp'))) {
+            if (Test-Path (Join-Path $candidate 'xampp-control.exe')) { $xampp = $candidate; break }
+          }
+          if (-not $xampp) {
+            foreach ($drive in @('C:\','D:\')) {
+              $found = Get-ChildItem $drive -Filter 'xampp-control.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) { $xampp = $found.Directory.FullName; break }
+            }
+          }
+          if (-not $xampp) { throw 'Installer did not leave xampp-control.exe.' }
+          foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
+            if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
+          }
+          New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'apache\logs'),(Join-Path $xampp 'mysql\data') | Out-Null
+          if (-not (Test-Path (Join-Path $xampp 'apache\logs\keep.txt'))) { Set-Content (Join-Path $xampp 'apache\logs\keep.txt') 'Apache logs directory placeholder.' }
+          if (-not (Test-Path (Join-Path $xampp 'mysql\data\keep.txt'))) { Set-Content (Join-Path $xampp 'mysql\data\keep.txt') 'MariaDB data directory placeholder.' }
+          Push-Location $xampp
+          try {
+            & .\php\php.exe -v
+            if ($LASTEXITCODE -ne 0) { throw 'PHP smoke test failed' }
+            & .\apache\bin\httpd.exe -t
+            if ($LASTEXITCODE -ne 0) { throw 'Apache configuration test failed' }
+            & .\mysql\bin\mysqld.exe --version
+            if ($LASTEXITCODE -ne 0) { throw 'MariaDB binary smoke test failed' }
+          } finally { Pop-Location }
+          $stage = Join-Path $env:RUNNER_TEMP 'package'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item $xampp (Join-Path $stage 'xampp') -Recurse -Force
+          Compress-Archive -Path (Join-Path $stage 'xampp') -DestinationPath 'XAMPP-8.4.27-portable-Windows-x64.zip' -CompressionLevel Optimal
+          $check = Join-Path $env:RUNNER_TEMP 'verify-zip'
+          Expand-Archive -Path 'XAMPP-8.4.27-portable-Windows-x64.zip' -DestinationPath $check -Force
+          foreach ($required in @('xampp\xampp-control.exe','xampp\php\php.exe','xampp\apache\bin\httpd.exe','xampp\mysql\bin\mysqld.exe')) {
+            if (-not (Test-Path (Join-Path $check $required))) { throw "ZIP validation failed: $required" }
+          }
+          $hash = (Get-FileHash 'XAMPP-8.4.27-portable-Windows-x64.zip' -Algorithm SHA256).Hash.ToLower()
+          "$hash  XAMPP-8.4.27-portable-Windows-x64.zip" | Set-Content SHA256SUMS.txt -Encoding ascii
+
+      - name: Publish portable ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.4.27
+          name: XAMPP 8.4.27 portable (Windows x64)
+          target_commitish: xampp-8.4.27
+          body: |
+            XAMPP 8.4.27 portable para Windows x64.
+            ZIP reconstruido desde el instalador oficial en runner Windows.
+            Se verifica SHA-256 del origen, PHP, configuración Apache, MariaDB y extracción del ZIP.
+            Extrae en una carpeta escribible y ejecuta setup_xampp.bat para adaptar las rutas. No instales servicios Windows.
+          files: |
+            XAMPP-8.4.27-portable-Windows-x64.zip
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
