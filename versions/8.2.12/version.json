@@ -1,0 +1,15 @@
+{
+  "project": "Harilai/Xamp-Portable",
+  "xampp_version": "8.2.12",
+  "php_version": "8.2.12",
+  "platform": "Windows x64",
+  "distribution": "ZIP portable",
+  "source": "ZIP portable oficial",
+  "build_method": "official-portable-zip",
+  "release_url": "https://github.com/Harilai/Xamp-Portable/releases/tag/v8.2.12",
+  "download_url": "https://github.com/Harilai/Xamp-Portable/releases/download/v8.2.12/xampp-portable-windows-x64-8.2.12-0-VS16.zip",
+  "package_filename": "xampp-portable-windows-x64-8.2.12-0-VS16.zip",
+  "checksum_file": "SHA256SUMS.txt",
+  "automated_validation": "SHA-256 del paquete de origen verificado.",
+  "functional_runtime_status": "No consta prueba funcional completa de Apache y MariaDB en Windows."
+}
