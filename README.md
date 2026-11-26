@@ -1,121 +1,77 @@
-# XAMPP para Windows x64
+# XAMPP portable para Windows x64
 
-Repositorio de versiones de XAMPP para Windows. Aquí encontrarás un índice de descargas, instrucciones de instalación y el historial de publicaciones.
+Repositorio de paquetes **ZIP portables** de XAMPP para Windows. El objetivo es poder descargar, extraer y ejecutar XAMPP desde una carpeta con permisos de escritura del usuario, sin asistente de instalación ni permisos de administrador.
 
-> **Importante:** no todos los paquetes tienen el mismo formato. Algunas versiones son ZIP portables y otras son instaladores oficiales `.exe`. El formato está indicado en la tabla.
+> **Formato único de descarga: ZIP.** No se publican instaladores `.exe` como paquetes de usuario. Los instaladores oficiales, cuando son la única fuente disponible, se utilizan únicamente como origen para extraer el contenido y reconstruir el ZIP portable.
 
-## Índice de versiones disponibles
+## Índice de versiones
 
-| Versión | PHP | Formato | Descarga | Estado |
+| Versión | PHP | Paquete | Descarga | Estado |
 |---|---:|---|---|---|
-| **8.5.13** | 8.5.13 | Instalador oficial (.exe) | [Release v8.5.13](https://github.com/Harilai/xamp-versions/releases/tag/v8.5.13) | Publicada; SHA-256 verificado |
-| **8.4.28** | 8.4.28 | Instalador oficial (.exe) | [Release v8.4.28](https://github.com/Harilai/xamp-versions/releases/tag/v8.4.28) | Publicada; SHA-256 verificado |
-| **8.3.37** | 8.3.37 | ZIP portable reconstruido | [Release v8.3.37](https://github.com/Harilai/xamp-versions/releases/tag/v8.3.37) | Publicada; ZIP íntegro; arranque pendiente de prueba en Windows |
-| **8.3.36** | 8.3.36 | Instalador oficial (.exe) | [Release v8.3.36](https://github.com/Harilai/xamp-versions/releases/tag/v8.3.36) | Publicada; SHA-256 verificado |
-| **8.2.12** | 8.2.12 | ZIP portable oficial | [Release v8.2.12](https://github.com/Harilai/xamp-versions/releases/tag/v8.2.12) | Publicada; SHA-256 verificado |
+| **8.5.13** | 8.5.13 | ZIP portable reconstruido | [Release v8.5.13](https://github.com/Harilai/xamp-versions/releases/tag/v8.5.13) | Conversión desde instalador oficial; validación del workflow |
+| **8.4.28** | 8.4.28 | ZIP portable reconstruido | [Release v8.4.28](https://github.com/Harilai/xamp-versions/releases/tag/v8.4.28) | Conversión desde instalador oficial; validación del workflow |
+| **8.3.37** | 8.3.37 | ZIP portable reconstruido | [Release v8.3.37](https://github.com/Harilai/xamp-versions/releases/tag/v8.3.37) | ZIP reconstruido; CRC validado; arranque Windows pendiente |
+| **8.3.36** | 8.3.36 | ZIP portable reconstruido | [Release v8.3.36](https://github.com/Harilai/xamp-versions/releases/tag/v8.3.36) | Conversión desde instalador oficial; validación del workflow |
+| **8.2.12** | 8.2.12 | ZIP portable oficial | [Release v8.2.12](https://github.com/Harilai/xamp-versions/releases/tag/v8.2.12) | ZIP oficial; SHA-256 verificado |
 
 - [Ver todas las Releases](https://github.com/Harilai/xamp-versions/releases)
 - [Ver la última Release](https://github.com/Harilai/xamp-versions/releases/latest)
 
-Cada Release contiene el paquete y, cuando está disponible, un archivo `SHA256SUMS.txt` para verificarlo.
+Cada Release debe incluir el ZIP portable y `SHA256SUMS.txt`.
 
-## ¿Qué versión debo descargar?
+## Qué significa portable en este repositorio
 
-- **Para usar PHP 8.5:** elige 8.5.13.
-- **Para usar PHP 8.4:** elige 8.4.28.
-- **Para trabajar con PHP 8.3:** elige 8.3.37 o 8.3.36. La 8.3.37 es portable; la 8.3.36 es instalador.
-- **Para proyectos que requieren PHP 8.2:** elige 8.2.12.
+- El usuario extrae el ZIP en una carpeta de su perfil o en una unidad donde tenga permisos de escritura.
+- No se ejecuta un asistente de instalación ni se escribe en `Program Files`.
+- No se registran servicios de Windows ni se requiere elevar privilegios para iniciar los procesos de forma manual.
+- Los directorios de logs y datos necesarios deben existir dentro del paquete.
+- La portabilidad del paquete no garantiza que los puertos estén libres ni que el equipo tenga las dependencias de Visual C++ requeridas.
 
-Comprueba siempre qué versión de PHP necesita tu proyecto antes de cambiar de XAMPP.
+**Importante:** extraer un instalador y validar el ZIP no demuestra que Apache y MariaDB arranquen correctamente en cualquier Windows. La prueba definitiva debe hacerse en Windows con una cuenta estándar, sin «Ejecutar como administrador».
 
-## Guía paso a paso para Windows
+## Instalación y uso
 
-### 1. Descargar
+1. Abre la Release de la versión deseada y descarga el archivo que termina en `.zip`.
+2. Extrae el ZIP con el Explorador de Windows o 7-Zip en una ruta donde tengas permisos, por ejemplo `%USERPROFILE%\xampp`.
+3. Entra en la carpeta extraída.
+4. Si el paquete incluye `setup_xampp.bat`, ejecútalo una vez para ajustar las rutas relativas.
+5. Abre `xampp-control.exe` normalmente, sin elevar permisos.
+6. Inicia Apache y MySQL desde el panel. No los instales como servicios de Windows.
+7. Comprueba [http://localhost/](http://localhost/) y [http://localhost/phpmyadmin/](http://localhost/phpmyadmin/).
 
-1. Abre el enlace de la versión que quieras en la tabla.
-2. En la página de GitHub Releases, localiza la sección **Assets**.
-3. Descarga el archivo principal:
-   - Si termina en `.zip`, es un paquete portable.
-   - Si termina en `.exe`, es un instalador.
-4. Descarga también `SHA256SUMS.txt` si aparece en esa Release.
-
-No descargues el código fuente de GitHub (`Source code.zip` o `.tar.gz`): no es el paquete de XAMPP.
-
-### 2. Verificar la descarga (recomendado)
-
-Abre PowerShell en la carpeta donde guardaste el archivo y ejecuta:
-
-```powershell
-Get-FileHash .\NOMBRE-DEL-ARCHIVO -Algorithm SHA256
-```
-
-Compara el valor obtenido con el hash publicado en `SHA256SUMS.txt` o en la descripción de la Release. Si no coincide, no uses ese archivo y vuelve a descargarlo.
-
-### 3. Instalar según el formato
-
-**Si has descargado un ZIP portable:**
-
-1. Extrae el ZIP con el Explorador de Windows o 7-Zip.
-2. Coloca la carpeta resultante en una ruta sencilla donde tengas permisos de escritura, por ejemplo `%USERPROFILE%\xampp`.
-3. Si dentro aparece `setup_xampp.bat`, ejecútalo una vez desde esa carpeta para ajustar las rutas.
-4. Abre `xampp-control.exe`.
-
-**Si has descargado un instalador EXE:**
-
-1. Ejecuta el instalador.
-2. Si Windows solicita permisos que no tienes, elige una carpeta de instalación dentro de tu perfil de usuario o consulta con el administrador del equipo.
-3. Sigue el asistente y selecciona los componentes que necesites.
-4. Al terminar, abre el XAMPP Control Panel desde la carpeta de instalación.
-
-Evita instalar XAMPP dentro de `C:\Program Files` si no tienes permisos de administrador. Para un entorno de clase suele ser más sencillo utilizar una ruta dentro de tu perfil de usuario.
-
-### 4. Iniciar Apache y MySQL/MariaDB
-
-1. En XAMPP Control Panel, pulsa **Start** en Apache.
-2. Pulsa **Start** en MySQL.
-3. Comprueba que ambos servicios aparecen como iniciados.
-4. Abre [http://localhost/](http://localhost/) en el navegador.
-5. Para phpMyAdmin, prueba [http://localhost/phpmyadmin/](http://localhost/phpmyadmin/).
-
-No instales Apache o MySQL como servicios de Windows si no tienes permisos de administrador; puedes iniciarlos desde el panel.
-
-### 5. Comprobar PHP
-
-Abre CMD y ejecuta la ruta de PHP correspondiente a tu carpeta de instalación:
+Para comprobar PHP desde CMD:
 
 ```cmd
 C:\ruta\a\xampp\php\php.exe -v
 ```
 
-Debe aparecer la versión de PHP incluida en el paquete que has elegido.
+## Verificar la descarga
 
-### 6. Si Apache o MySQL no arrancan
+En PowerShell, dentro de la carpeta que contiene el ZIP:
 
-1. Cierra otros entornos locales, como Laragon, WAMP u otra instancia de XAMPP.
-2. Comprueba si los puertos habituales están ocupados: Apache usa normalmente 80 y 443; MySQL/MariaDB suele usar 3306.
-3. Revisa los logs de Apache y MySQL dentro de la carpeta `logs` de cada componente.
-4. Si aparece un error de DLL, instala el Microsoft Visual C++ Redistributable requerido por esa versión.
-5. No cambies puertos a ciegas: identifica primero el proceso que los está utilizando.
+```powershell
+Get-FileHash .\NOMBRE-DEL-ARCHIVO.zip -Algorithm SHA256
+```
 
-## Verificación y limitaciones
+Compara el resultado con `SHA256SUMS.txt` de la Release. Si no coincide, vuelve a descargar el archivo.
 
-- Los workflows comprueban el SHA-256 de los archivos oficiales antes de publicarlos cuando se dispone de un hash de origen conocido.
-- Los ZIP se comprueban además con la herramienta de validación del formato ZIP.
-- **La verificación de hash e integridad no equivale a una prueba de ejecución.** No se afirma que Apache, PHP o MariaDB hayan arrancado en todos los equipos Windows.
-- La versión 8.3.37 es una reconstrucción portable y se ha corregido para incluir la carpeta `apache/logs`; aun así, su arranque debe validarse en Windows.
-- Utiliza estas distribuciones para desarrollo y pruebas locales, no como servidores de producción expuestos a Internet.
+## Solución de problemas
 
-## Cómo se añaden nuevas versiones
+- **Apache se detiene al arrancar:** revisa `apache\logs\error.log` y comprueba si los puertos 80/443 están ocupados.
+- **MySQL no arranca:** revisa `mysql\data\mysql_error.log` o los logs disponibles en esa versión y comprueba el puerto 3306.
+- **Faltan DLL:** instala o solicita al administrador el Microsoft Visual C++ Redistributable que corresponda a la compilación.
+- **No tienes permisos:** extrae el ZIP en tu perfil de usuario, nunca en `C:\Program Files`.
+- **No cambies puertos a ciegas:** identifica primero qué proceso los ocupa.
 
-Cada versión tiene su propia rama `xampp-X.Y.Z` y un workflow en `.github/workflows/publish-xampp-release.yml`.
+## Verificación y límites
 
-1. Se identifica el paquete oficial de Windows y su formato.
-2. Se configura el origen y el SHA-256 oficial conocido.
-3. GitHub Actions descarga o reconstruye el paquete y verifica su integridad.
-4. Si las comprobaciones pasan, el workflow crea o actualiza la Release `vX.Y.Z`.
-5. Se añade la versión a la tabla de este README.
+Los workflows deben verificar el hash del origen oficial, extraer el payload sin ejecutar el instalador, comprobar la presencia de los ejecutables principales y directorios requeridos, generar el ZIP y validar su CRC y SHA-256.
 
-Las nuevas versiones deben indicar claramente si son ZIP portables o instaladores. No se deben etiquetar instaladores como paquetes portables.
+Estas comprobaciones automatizadas son estáticas. No equivalen a una prueba funcional de Apache, MariaDB y PHP en Windows. Las versiones que no hayan superado una prueba real en una cuenta estándar deben identificarse como pendientes de validación funcional.
+
+## Cómo se generan las versiones
+
+Cada versión tiene su propia rama `xampp-X.Y.Z` y workflow en `.github/workflows/publish-xampp-release.yml`. El proceso descarga el origen oficial, verifica su hash, obtiene el contenido portable, repara directorios requeridos, empaqueta un ZIP y publica el ZIP junto con su checksum. El instalador EXE no es el artefacto que se entrega al usuario.
 
 ## Fuentes oficiales
 
