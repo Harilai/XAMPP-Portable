@@ -74,14 +74,6 @@ jobs:
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           "$hash  $zip" | Set-Content SHA256SUMS.txt -Encoding ascii
 
-      - name: Replace installer assets with portable ZIP
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: |
-          gh release delete-asset v8.3.36 'xampp-windows-x64-8.3.36-0-VC16-installer.exe' --yes
-          gh release delete-asset v8.3.36 'SHA256SUMS.txt' --yes
-
       - name: Publish portable ZIP
         uses: softprops/action-gh-release@v2
         with:
@@ -98,3 +90,11 @@ jobs:
             SHA256SUMS.txt
           fail_on_unmatched_files: true
           overwrite_files: true
+
+
+      - name: Remove original installer after ZIP publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release delete-asset v8.3.36 'xampp-windows-x64-8.3.36-0-VC16-installer.exe' --repo Harilai/xamp-versions --yes
