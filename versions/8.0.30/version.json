@@ -1,0 +1,15 @@
+{
+  "project": "Harilai/Xamp-Portable",
+  "xampp_version": "8.0.30",
+  "php_version": "8.0.30",
+  "platform": "Windows x64",
+  "distribution": "ZIP portable",
+  "source": "ZIP portable oficial",
+  "build_method": "official-portable-zip",
+  "release_url": "https://github.com/Harilai/Xamp-Portable/releases/tag/v8.0.30",
+  "download_url": "https://github.com/Harilai/Xamp-Portable/releases/download/v8.0.30/XAMPP-8.0.30-portable-Windows-x64.zip",
+  "package_filename": "XAMPP-8.0.30-portable-Windows-x64.zip",
+  "checksum_file": "SHA256SUMS.txt",
+  "automated_validation": "SHA-256 de origen, extracción, setup_xampp.bat, PHP -v, configuración Apache (httpd -t) y versión de MariaDB: workflow correcto.",
+  "functional_runtime_status": "No consta prueba de arranque conjunto de Apache y MariaDB en un Windows real."
+}
