@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    name: Create release and attach download files
+    name: Rebuild, verify and publish the portable ZIP
     runs-on: ubuntu-latest
     steps:
       - name: Check out version payload
@@ -18,7 +18,43 @@ jobs:
         with:
           ref: xampp-8.3.37
 
-      - name: Publish GitHub Release
+      - name: Reassemble and verify the complete ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip_name="XAMPP-8.3.37-portable-reconstruido.zip"
+          cat \
+            XAMPP-8.3.37-parte-0.bin \
+            XAMPP-8.3.37-parte-1.bin \
+            XAMPP-8.3.37-parte-2.bin \
+            XAMPP-8.3.37-parte-3.bin \
+            XAMPP-8.3.37-parte-4.bin > "$zip_name"
+
+          expected="59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef"
+          actual="$(sha256sum "$zip_name" | cut -d' ' -f1)"
+          echo "Expected SHA-256: $expected"
+          echo "Actual SHA-256:   $actual"
+          test "$actual" = "$expected"
+          printf '%s  %s\n' "$expected" "$zip_name" > SHA256SUMS.txt
+
+      - name: Remove old split assets from the previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view v8.3.37 >/dev/null 2>&1; then
+            for asset in \
+              XAMPP-8.3.37-parte-0.bin \
+              XAMPP-8.3.37-parte-1.bin \
+              XAMPP-8.3.37-parte-2.bin \
+              XAMPP-8.3.37-parte-3.bin \
+              XAMPP-8.3.37-parte-4.bin \
+              unir-XAMPP.bat; do
+              gh release delete-asset v8.3.37 "$asset" --yes || true
+            done
+          fi
+
+      - name: Publish the single-file release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v8.3.37
@@ -27,19 +63,14 @@ jobs:
           body: |
             XAMPP 8.3.37 portable reconstruido para Windows x64.
 
-            Descarga los cinco archivos XAMPP-8.3.37-parte-N.bin y unir-XAMPP.bat.
-            Colócalos en una misma carpeta y ejecuta el BAT para reconstruir el ZIP.
+            Descarga el ZIP completo y extraelo en Windows. El asset SHA256SUMS.txt contiene su suma de comprobacion.
 
-            SHA-256 esperado del ZIP reconstruido:
+            SHA-256 del ZIP:
             59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef
 
             Aviso: se comprobó la integridad CRC del ZIP, pero no se ejecutaron los binarios en Windows. No se certifica el arranque de Apache, PHP, MariaDB ni del panel. No usar en producción.
           files: |
-            XAMPP-8.3.37-parte-0.bin
-            XAMPP-8.3.37-parte-1.bin
-            XAMPP-8.3.37-parte-2.bin
-            XAMPP-8.3.37-parte-3.bin
-            XAMPP-8.3.37-parte-4.bin
-            unir-XAMPP.bat
+            XAMPP-8.3.37-portable-reconstruido.zip
+            SHA256SUMS.txt
           fail_on_unmatched_files: true
           overwrite_files: true
