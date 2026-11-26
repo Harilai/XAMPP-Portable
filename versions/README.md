@@ -7,6 +7,7 @@ Esta carpeta centraliza la ficha de cada versión disponible.
 Cada subcarpeta usa el número exacto de versión de XAMPP y contiene:
 - `README.md`: resumen humano, origen, validación y enlaces.
 - `version.json`: manifiesto estructurado para automatizaciones y consultas.
+- `build/`: copia histórica del workflow de publicación; para 8.3.37 también incluye el script de unión de fragmentos.
 
 Los ZIP no se guardan en Git. Se descargan desde los assets de GitHub Releases para evitar duplicar paquetes de 200–330 MB en el historial del repositorio.
 
@@ -26,4 +27,4 @@ Los ZIP no se guardan en Git. Se descargan desde los assets de GitHub Releases p
 
 ## Criterio de validación
 
-Las fichas distinguen las comprobaciones automatizadas del paquete de una prueba funcional real de arranque de Apache y MariaDB. La primera no implica automáticamente la segunda.
+Los workflows archivados en `build/` son documentación histórica: no se ejecutan desde esa ubicación. Las fichas distinguen las comprobaciones automatizadas del paquete de una prueba funcional real de arranque de Apache y MariaDB. La primera no implica automáticamente la segunda.
