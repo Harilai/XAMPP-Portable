@@ -22,20 +22,28 @@ jobs:
           $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne 'c23b29639715d3a9800dc86b0274f6cacc4b5114556f474a84f42d4cbba7e640') { throw "Installer SHA-256 mismatch: $actual" }
 
-      - name: Install to default staging path and package portable ZIP
+      - name: Run unattended installer and locate installed payload
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $xampp = 'C:\xampp'
-          if (Test-Path $xampp) { Remove-Item $xampp -Recurse -Force }
-          & ".\xampp-windows-x64-8.5.13-0-VS17-installer.exe" --mode unattended --unattendedmodeui none
-          $installerExit = $LASTEXITCODE
-          Write-Host "Installer exit code: $installerExit"
-          if ($installerExit -ne 0) { throw "XAMPP installer returned exit code $installerExit" }
-          if (-not (Test-Path (Join-Path $xampp 'xampp-control.exe'))) {
-            Get-ChildItem 'C:\' -Filter 'xampp-control.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 10 FullName | Format-Table -AutoSize | Out-String | Write-Host
-            throw "xampp-control.exe not found at $xampp after unattended installation."
+          $p = Start-Process -FilePath ".\xampp-windows-x64-8.5.13-0-VS17-installer.exe" -ArgumentList '--mode unattended --unattendedmodeui none' -Wait -PassThru
+          Write-Host "Installer process exit code: $($p.ExitCode)"
+          $candidates = @('C:\xampp', 'D:\xampp', (Join-Path $env:RUNNER_TEMP 'xampp'))
+          $xampp = $null
+          foreach ($candidate in $candidates) {
+            if (Test-Path (Join-Path $candidate 'xampp-control.exe')) { $xampp = $candidate; break }
           }
+          if (-not $xampp) {
+            foreach ($drive in @('C:\','D:\')) {
+              $found = Get-ChildItem $drive -Filter 'xampp-control.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) { $xampp = $found.Directory.FullName; break }
+            }
+          }
+          if (-not $xampp) {
+            Get-ChildItem 'C:\' -Directory -Force | Select-Object FullName | Format-Table -AutoSize | Out-String | Write-Host
+            throw 'Installer did not leave xampp-control.exe on either runner drive.'
+          }
+          Write-Host "Located XAMPP at $xampp"
           foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
             if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
           }
