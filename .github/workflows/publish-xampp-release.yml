@@ -1,9 +1,9 @@
-name: Build portable XAMPP 8.5.13 ZIP
+name: Build portable XAMPP 8.5.12 ZIP
 
 on:
   push:
     branches:
-      - xampp-8.5.13
+      - xampp-8.5.12
 
 permissions:
   contents: write
@@ -17,20 +17,19 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = 'xampp-windows-x64-8.5.13-0-VS17-installer.exe'
-          curl.exe -fL --retry 3 --retry-delay 2 'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.5.13/xampp-windows-x64-8.5.13-0-VS17-installer.exe' -o $installer
+          $installer = 'xampp-windows-x64-8.5.12-0-VS17-installer.exe'
+          curl.exe -fL --retry 3 --retry-delay 2 'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.5.12/xampp-windows-x64-8.5.12-0-VS17-installer.exe' -o $installer
           $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
-          if ($actual -ne 'c23b29639715d3a9800dc86b0274f6cacc4b5114556f474a84f42d4cbba7e640') { throw "Installer SHA-256 mismatch: $actual" }
+          if ($actual -ne '54c4c492def0734fa156843b571036bddbb7020f89e9881ba9d8c02db124263c') { throw "Installer SHA-256 mismatch: $actual" }
 
-      - name: Run unattended installer and locate installed payload
+      - name: Install, validate and package
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $p = Start-Process -FilePath ".\xampp-windows-x64-8.5.13-0-VS17-installer.exe" -ArgumentList '--mode unattended --unattendedmodeui none' -Wait -PassThru
+          $p = Start-Process -FilePath '.\xampp-windows-x64-8.5.12-0-VS17-installer.exe' -ArgumentList '--mode unattended --unattendedmodeui none' -Wait -PassThru
           Write-Host "Installer process exit code: $($p.ExitCode)"
-          $candidates = @('C:\xampp', 'D:\xampp', (Join-Path $env:RUNNER_TEMP 'xampp'))
           $xampp = $null
-          foreach ($candidate in $candidates) {
+          foreach ($candidate in @('C:\xampp', 'D:\xampp', (Join-Path $env:RUNNER_TEMP 'xampp'))) {
             if (Test-Path (Join-Path $candidate 'xampp-control.exe')) { $xampp = $candidate; break }
           }
           if (-not $xampp) {
@@ -39,16 +38,11 @@ jobs:
               if ($found) { $xampp = $found.Directory.FullName; break }
             }
           }
-          if (-not $xampp) {
-            Get-ChildItem 'C:\' -Directory -Force | Select-Object FullName | Format-Table -AutoSize | Out-String | Write-Host
-            throw 'Installer did not leave xampp-control.exe on either runner drive.'
-          }
-          Write-Host "Located XAMPP at $xampp"
+          if (-not $xampp) { throw 'Installer did not leave xampp-control.exe.' }
           foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
             if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
           }
-          New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'apache\logs') | Out-Null
-          New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'mysql\data') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $xampp 'apache\logs'),(Join-Path $xampp 'mysql\data') | Out-Null
           if (-not (Test-Path (Join-Path $xampp 'apache\logs\keep.txt'))) { Set-Content (Join-Path $xampp 'apache\logs\keep.txt') 'Apache logs directory placeholder.' }
           if (-not (Test-Path (Join-Path $xampp 'mysql\data\keep.txt'))) { Set-Content (Join-Path $xampp 'mysql\data\keep.txt') 'MariaDB data directory placeholder.' }
           Push-Location $xampp
@@ -63,38 +57,28 @@ jobs:
           $stage = Join-Path $env:RUNNER_TEMP 'package'
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item $xampp (Join-Path $stage 'xampp') -Recurse -Force
-          $zip = "XAMPP-8.5.13-portable-Windows-x64.zip"
-          Compress-Archive -Path (Join-Path $stage 'xampp') -DestinationPath $zip -CompressionLevel Optimal
+          Compress-Archive -Path (Join-Path $stage 'xampp') -DestinationPath 'XAMPP-8.5.12-portable-Windows-x64.zip' -CompressionLevel Optimal
           $check = Join-Path $env:RUNNER_TEMP 'verify-zip'
-          if (Test-Path $check) { Remove-Item $check -Recurse -Force }
-          Expand-Archive -Path $zip -DestinationPath $check -Force
-          foreach ($required in @('xampp\xampp-control.exe','xampp\php\php.exe','xampp\apache\bin\httpd.exe','xampp\mysql\bin\mysqld.exe','xampp\apache\logs')) {
+          Expand-Archive -Path 'XAMPP-8.5.12-portable-Windows-x64.zip' -DestinationPath $check -Force
+          foreach ($required in @('xampp\xampp-control.exe','xampp\php\php.exe','xampp\apache\bin\httpd.exe','xampp\mysql\bin\mysqld.exe')) {
             if (-not (Test-Path (Join-Path $check $required))) { throw "ZIP validation failed: $required" }
           }
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          "$hash  $zip" | Set-Content SHA256SUMS.txt -Encoding ascii
+          $hash = (Get-FileHash 'XAMPP-8.5.12-portable-Windows-x64.zip' -Algorithm SHA256).Hash.ToLower()
+          "$hash  XAMPP-8.5.12-portable-Windows-x64.zip" | Set-Content SHA256SUMS.txt -Encoding ascii
 
       - name: Publish portable ZIP
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v8.5.13
-          name: XAMPP 8.5.13 portable (Windows x64)
-          target_commitish: xampp-8.5.13
+          tag_name: v8.5.12
+          name: XAMPP 8.5.12 portable (Windows x64)
+          target_commitish: xampp-8.5.12
           body: |
-            XAMPP 8.5.13 portable para Windows x64.
-            ZIP reconstruido desde el payload oficial en runner Windows, sin instalar servicios.
-            Se valida hash de origen, PHP, configuración Apache, MariaDB y extracción del ZIP.
+            XAMPP 8.5.12 portable para Windows x64.
+            ZIP reconstruido desde el instalador oficial en runner Windows.
+            Se verifica SHA-256 del origen, PHP, configuración Apache, MariaDB y extracción del ZIP.
             Extrae en una carpeta escribible y ejecuta setup_xampp.bat para adaptar las rutas. No instales servicios Windows.
           files: |
-            XAMPP-8.5.13-portable-Windows-x64.zip
+            XAMPP-8.5.12-portable-Windows-x64.zip
             SHA256SUMS.txt
           fail_on_unmatched_files: true
           overwrite_files: true
-
-
-      - name: Remove original installer after ZIP publication
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: |
-          gh release delete-asset v8.5.13 'xampp-windows-x64-8.5.13-0-VS17-installer.exe' --repo Harilai/xamp-versions --yes
