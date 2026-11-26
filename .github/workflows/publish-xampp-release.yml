@@ -1,0 +1,44 @@
+name: Publish XAMPP 8.5.13 Windows installer
+
+on:
+  push:
+    branches:
+      - xampp-8.5.13
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download official SourceForge installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 \
+            "https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.5.13/xampp-windows-x64-8.5.13-0-VS17-installer.exe" \
+            -o "xampp-windows-x64-8.5.13-0-VS17-installer.exe"
+          echo "c23b29639715d3a9800dc86b0274f6cacc4b5114556f474a84f42d4cbba7e640  xampp-windows-x64-8.5.13-0-VS17-installer.exe" | sha256sum -c -
+          printf '%s  %s\n' "c23b29639715d3a9800dc86b0274f6cacc4b5114556f474a84f42d4cbba7e640" "xampp-windows-x64-8.5.13-0-VS17-installer.exe" > SHA256SUMS.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.5.13
+          name: XAMPP 8.5.13 Windows x64 (VS17)
+          target_commitish: xampp-8.5.13
+          body: |
+            Instalador oficial de XAMPP 8.5.13 para Windows x64, descargado desde SourceForge.
+
+            Archivo: xampp-windows-x64-8.5.13-0-VS17-installer.exe
+            SHA-256 comprobado en el workflow antes de publicar.
+
+            **Este asset es un instalador .exe, no un paquete portable ZIP.**
+            Revisa los requisitos de Microsoft Visual C++ Redistributable de la versión antes de instalar.
+            El arranque de Apache, MariaDB y PHP debe probarse en Windows; esta publicación no certifica ejecución local.
+          files: |
+            xampp-windows-x64-8.5.13-0-VS17-installer.exe
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
