@@ -1,0 +1,45 @@
+name: Publish XAMPP 8.3.37 release
+
+on:
+  push:
+    branches:
+      - xampp-8.3.37
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create release and attach download files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out version payload
+        uses: actions/checkout@v4
+        with:
+          ref: xampp-8.3.37
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.3.37
+          name: XAMPP 8.3.37 portable (Windows x64)
+          target_commitish: xampp-8.3.37
+          body: |
+            XAMPP 8.3.37 portable reconstruido para Windows x64.
+
+            Descarga los cinco archivos XAMPP-8.3.37-parte-N.bin y unir-XAMPP.bat.
+            Colócalos en una misma carpeta y ejecuta el BAT para reconstruir el ZIP.
+
+            SHA-256 esperado del ZIP reconstruido:
+            59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef
+
+            Aviso: se comprobó la integridad CRC del ZIP, pero no se ejecutaron los binarios en Windows. No se certifica el arranque de Apache, PHP, MariaDB ni del panel. No usar en producción.
+          files: |
+            XAMPP-8.3.37-parte-0.bin
+            XAMPP-8.3.37-parte-1.bin
+            XAMPP-8.3.37-parte-2.bin
+            XAMPP-8.3.37-parte-3.bin
+            XAMPP-8.3.37-parte-4.bin
+            unir-XAMPP.bat
+          fail_on_unmatched_files: true
+          overwrite_files: true
