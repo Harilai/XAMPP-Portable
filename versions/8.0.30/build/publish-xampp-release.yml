@@ -1,0 +1,65 @@
+name: Publish portable XAMPP 8.0.30
+
+on:
+  push:
+    branches:
+      - xampp-8.0.30
+
+permissions:
+  contents: write
+
+jobs:
+  portable:
+    name: Verify and publish official portable ZIP
+    runs-on: windows-latest
+    steps:
+      - name: Download and verify official portable ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          curl.exe -fL --retry 3 --retry-delay 2 'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.0.30/xampp-portable-windows-x64-8.0.30-0-VS16.zip' -o 'XAMPP-8.0.30-portable-Windows-x64.zip'
+          $actual = (Get-FileHash 'XAMPP-8.0.30-portable-Windows-x64.zip' -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne '9a91df12ea6c5838fedec22a1fce7cc0f7c4431c32204078395e798715bf9b24') { throw "Source ZIP SHA-256 mismatch: $actual" }
+          $hash = "$actual  XAMPP-8.0.30-portable-Windows-x64.zip"
+          $hash | Set-Content SHA256SUMS.txt -Encoding ascii
+
+      - name: Extract and smoke-test package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $check = Join-Path $env:RUNNER_TEMP 'verify-zip'
+          Expand-Archive -Path 'XAMPP-8.0.30-portable-Windows-x64.zip' -DestinationPath $check -Force
+          $control = Get-ChildItem $check -Filter 'xampp-control.exe' -File -Recurse | Select-Object -First 1
+          if (-not $control) { throw 'xampp-control.exe missing from portable archive' }
+          $xampp = $control.Directory.FullName
+          foreach ($required in @('php\php.exe','apache\bin\httpd.exe','mysql\bin\mysqld.exe','setup_xampp.bat')) {
+            if (-not (Test-Path (Join-Path $xampp $required))) { throw "Missing required payload: $required" }
+          }
+          Push-Location $xampp
+          try {
+            & .\setup_xampp.bat
+            if ($LASTEXITCODE -ne 0) { throw 'setup_xampp.bat failed to configure relative paths' }
+            & .\php\php.exe -v
+            if ($LASTEXITCODE -ne 0) { throw 'PHP smoke test failed' }
+            & .\apache\bin\httpd.exe -t
+            if ($LASTEXITCODE -ne 0) { throw 'Apache configuration test failed' }
+            & .\mysql\bin\mysqld.exe --version
+            if ($LASTEXITCODE -ne 0) { throw 'MariaDB binary smoke test failed' }
+          } finally { Pop-Location }
+
+      - name: Publish portable ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v8.0.30
+          name: XAMPP 8.0.30 portable (Windows x64)
+          target_commitish: xampp-8.0.30
+          body: |
+            XAMPP 8.0.30 portable para Windows x64.
+            ZIP portable oficial de Apache Friends/SourceForge, verificado por SHA-256.
+            Se comprueba la extracción y se ejecutan pruebas básicas de PHP, Apache y MariaDB.
+            Extrae en una carpeta escribible. No instales servicios Windows.
+          files: |
+            XAMPP-8.0.30-portable-Windows-x64.zip
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          overwrite_files: true
