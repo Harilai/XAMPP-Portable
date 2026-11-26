@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    name: Rebuild, verify and publish the portable ZIP
+    name: Rebuild, repair, verify and publish the portable ZIP
     runs-on: ubuntu-latest
     steps:
       - name: Check out version payload
@@ -18,24 +18,38 @@ jobs:
         with:
           ref: xampp-8.3.37
 
-      - name: Reassemble and verify the complete ZIP
+      - name: Reassemble, repair and verify the complete ZIP
         shell: bash
         run: |
           set -euo pipefail
           zip_name="XAMPP-8.3.37-portable-reconstruido.zip"
+          source_zip="XAMPP-8.3.37-source.zip"
           cat \
             XAMPP-8.3.37-parte-0.bin \
             XAMPP-8.3.37-parte-1.bin \
             XAMPP-8.3.37-parte-2.bin \
             XAMPP-8.3.37-parte-3.bin \
-            XAMPP-8.3.37-parte-4.bin > "$zip_name"
+            XAMPP-8.3.37-parte-4.bin > "$source_zip"
 
           expected="59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef"
-          actual="$(sha256sum "$zip_name" | cut -d' ' -f1)"
-          echo "Expected SHA-256: $expected"
-          echo "Actual SHA-256:   $actual"
+          actual="$(sha256sum "$source_zip" | cut -d' ' -f1)"
+          echo "Expected source SHA-256: $expected"
+          echo "Actual source SHA-256:   $actual"
           test "$actual" = "$expected"
-          printf '%s  %s\n' "$expected" "$zip_name" > SHA256SUMS.txt
+
+          mkdir payload
+          unzip -q "$source_zip" -d payload
+          test -d payload/apache
+          mkdir -p payload/apache/logs
+
+          rm -f "$zip_name"
+          (cd payload && zip -qr "../$zip_name" .)
+          unzip -tq "$zip_name"
+          unzip -Z1 "$zip_name" | grep -qx 'apache/logs/'
+
+          final_hash="$(sha256sum "$zip_name" | cut -d' ' -f1)"
+          printf '%s  %s\n' "$final_hash" "$zip_name" > SHA256SUMS.txt
+          echo "Published ZIP SHA-256: $final_hash"
 
       - name: Remove old split assets from the previous release
         env:
@@ -54,7 +68,7 @@ jobs:
             done
           fi
 
-      - name: Publish the single-file release
+      - name: Publish the repaired release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v8.3.37
@@ -63,12 +77,11 @@ jobs:
           body: |
             XAMPP 8.3.37 portable reconstruido para Windows x64.
 
-            Descarga el ZIP completo y extraelo en Windows. El asset SHA256SUMS.txt contiene su suma de comprobacion.
+            Corrección: el ZIP incluye la carpeta apache/logs necesaria para que Apache pueda arrancar correctamente.
 
-            SHA-256 del ZIP:
-            59432c65eb6d1ade0d2cf9ad2ab6d98acf888c53f52f993186d1f58be98a53ef
+            Descarga el ZIP completo y extráelo en Windows. SHA256SUMS.txt contiene la suma SHA-256 del ZIP publicado.
 
-            Aviso: se comprobó la integridad CRC del ZIP, pero no se ejecutaron los binarios en Windows. No se certifica el arranque de Apache, PHP, MariaDB ni del panel. No usar en producción.
+            Aviso: se valida la integridad CRC del ZIP y la presencia de apache/logs. El arranque de Apache debe comprobarse en Windows; no se certifica el funcionamiento de todos los componentes ni su uso en producción.
           files: |
             XAMPP-8.3.37-portable-reconstruido.zip
             SHA256SUMS.txt
