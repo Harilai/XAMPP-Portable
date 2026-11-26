@@ -1,0 +1,15 @@
+{
+  "project": "Harilai/Xamp-Portable",
+  "xampp_version": "8.5.12",
+  "php_version": "8.5.12",
+  "platform": "Windows x64",
+  "distribution": "ZIP portable",
+  "source": "Instalador oficial reconstruido como ZIP portable",
+  "build_method": "installer-reconstruction",
+  "release_url": "https://github.com/Harilai/Xamp-Portable/releases/tag/v8.5.12",
+  "download_url": "https://github.com/Harilai/Xamp-Portable/releases/download/v8.5.12/XAMPP-8.5.12-portable-Windows-x64.zip",
+  "package_filename": "XAMPP-8.5.12-portable-Windows-x64.zip",
+  "checksum_file": "SHA256SUMS.txt",
+  "automated_validation": "Workflow correcto: PHP -v, configuración Apache (httpd -t), versión de MariaDB y extracción del ZIP.",
+  "functional_runtime_status": "No consta prueba de arranque conjunto de Apache y MariaDB en un Windows real."
+}
